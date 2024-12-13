@@ -51,11 +51,31 @@ app.post("/api/auth/signup", async (req: Request, res: Response) => {
     req.body
   );
 
+  // if no username or password is sent
+  if (!username || !password) {
+    res.sendStatus(400);
+    return;
+  }
+
+  // create all username in lowercase
+  const lowercaseUsername = username.toLowerCase();
+
   const hashedPassword = await hashPassword(password);
 
   const accountService = new AccountService(process.env.CSV_FILE_PATH || "");
-  // TODO: check if users exists first before adding new row!
-  await accountService.createAccount(username, hashedPassword);
+
+  // check if user with username exists. If so, throw error
+  const users = await accountService.getAccounts();
+  const foundUser = users.find(
+    (user) => user.username.toLowerCase() === lowercaseUsername
+  );
+  // user exists, throw error
+  if (foundUser) {
+    res.status(400).send({ error: "User already exists" });
+    return;
+  }
+
+  await accountService.createAccount(lowercaseUsername, hashedPassword);
 
   res.send();
 });
